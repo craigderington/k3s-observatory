@@ -17,13 +17,8 @@ export default function App() {
   const [selectedNamespace, setSelectedNamespace] = useState<string>('all');
   const [hasConnectedOnce, setHasConnectedOnce] = useState(false);
 
-  // Use refs to avoid recreating callbacks when state changes
-  const nodesRef = useRef<Node[]>([]);
-
-  // Keep ref in sync with state
-  useEffect(() => {
-    nodesRef.current = nodes;
-  }, [nodes]);
+  // Track raw pods before redistribution
+  const [rawPods, setRawPods] = useState<Pod[]>([]);
 
   // Add toast notification
   const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
@@ -41,8 +36,8 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Redistribute pods evenly around their nodes
-  const redistributePods = useCallback((pods: Pod[], nodes: Node[]) => {
+  // Helper function to redistribute pods evenly around their nodes
+  const redistributePodsHelper = useCallback((pods: Pod[], nodes: Node[]): Pod[] => {
     // Create a map of node positions
     const nodePositions = new Map(nodes.map(n => [n.name, n.position]));
 
@@ -81,6 +76,23 @@ export default function App() {
     });
   }, []);
 
+  // Redistribute pods whenever rawPods or nodes change
+  useEffect(() => {
+    if (rawPods.length === 0) {
+      setPods([]);
+      return;
+    }
+
+    if (nodes.length === 0) {
+      setPods(rawPods); // Show pods even if nodes aren't loaded yet
+      return;
+    }
+
+    const redistributed = redistributePodsHelper(rawPods, nodes);
+    setPods(redistributed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawPods, nodes]);
+
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback((event: { type: string; data: any }) => {
     const { type, data } = event;
@@ -88,42 +100,33 @@ export default function App() {
     switch (type) {
       case 'pod_added':
         if (data.pod) {
-          setPods((prev) => {
+          setRawPods((prev) => {
             // Check if pod already exists
             if (prev.find((p) => p.id === data.pod.id)) {
               return prev;
             }
             addToast(`Pod created: ${data.pod.namespace}/${data.pod.name}`, 'success');
-            const newPods = [...prev, data.pod];
-            return redistributePods(newPods, nodesRef.current);
+            return [...prev, data.pod];
           });
         }
         break;
 
       case 'pod_modified':
         if (data.pod) {
-          setPods((prev) => {
-            const oldPod = prev.find((p) => p.id === data.pod.id);
-            const updatedPods = prev.map((p) => (p.id === data.pod.id ? data.pod : p));
-
-            // Redistribute if pod was assigned to a node (nodeName changed)
-            if (oldPod && oldPod.nodeName !== data.pod.nodeName && data.pod.nodeName) {
-              return redistributePods(updatedPods, nodesRef.current);
-            }
-            return updatedPods;
-          });
+          setRawPods((prev) =>
+            prev.map((p) => (p.id === data.pod.id ? data.pod : p))
+          );
         }
         break;
 
       case 'pod_deleted':
         if (data.pod) {
-          setPods((prev) => {
+          setRawPods((prev) => {
             const pod = prev.find((p) => p.id === data.pod.id);
             if (pod) {
               addToast(`Pod deleted: ${pod.namespace}/${pod.name}`, 'warning');
             }
-            const remainingPods = prev.filter((p) => p.id !== data.pod.id);
-            return redistributePods(remainingPods, nodesRef.current);
+            return prev.filter((p) => p.id !== data.pod.id);
           });
         }
         break;
@@ -143,7 +146,13 @@ export default function App() {
       case 'node_modified':
         if (data.node) {
           setNodes((prev) =>
-            prev.map((n) => (n.id === data.node.id ? data.node : n))
+            prev.map((n) => {
+              if (n.id === data.node.id) {
+                // Preserve original position, only update other fields
+                return { ...data.node, position: n.position };
+              }
+              return n;
+            })
           );
         }
         break;
@@ -160,7 +169,7 @@ export default function App() {
         }
         break;
     }
-  }, [addToast, redistributePods]);
+  }, [addToast]);
 
   // WebSocket callbacks wrapped in useCallback to prevent reconnections
   const handleConnect = useCallback(() => {
@@ -202,7 +211,7 @@ export default function App() {
         ]);
 
         setNodes(nodesData);
-        setPods(podsData);
+        setRawPods(podsData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
         console.error('Error loading cluster data:', err);
