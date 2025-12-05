@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"log"
+	"math"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,7 +31,7 @@ func (c *Client) GetNodes() ([]Node, error) {
 		memory := node.Status.Capacity.Memory().AsApproximateFloat64() / (1024 * 1024 * 1024) // Convert to GB
 
 		// Calculate position in a circle
-		angle := float64(i) * 2.0 * 3.14159 / float64(len(nodeList.Items))
+		angle := float64(i) * 2.0 * math.Pi / float64(len(nodeList.Items))
 		radius := 10.0
 
 		nodes = append(nodes, Node{
@@ -48,24 +49,13 @@ func (c *Client) GetNodes() ([]Node, error) {
 			Pods:   []string{}, // Will be populated when fetching pods
 			Labels: node.Labels,
 			Position: Position{
-				X: radius * cos(angle),
+				X: radius * math.Cos(angle),
 				Y: 0,
-				Z: radius * sin(angle),
+				Z: radius * math.Sin(angle),
 			},
 		})
 	}
 
 	log.Printf("Fetched %d nodes from cluster", len(nodes))
 	return nodes, nil
-}
-
-// Simple math helpers
-func cos(x float64) float64 {
-	// Simple cosine approximation for small angles
-	return 1.0 - (x*x)/2.0 + (x*x*x*x)/24.0
-}
-
-func sin(x float64) float64 {
-	// Simple sine approximation
-	return x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0
 }

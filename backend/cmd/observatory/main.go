@@ -8,6 +8,7 @@ import (
 
 	"github.com/craigderington/lantern/internal/api"
 	"github.com/craigderington/lantern/internal/k8s"
+	"github.com/craigderington/lantern/internal/websocket"
 )
 
 func main() {
@@ -17,6 +18,30 @@ func main() {
 		log.Fatalf("Failed to create k8s client: %v", err)
 	}
 
+	// Create WebSocket hub
+	hub := websocket.NewHub()
+	go hub.Run()
+
+	// Start watching Kubernetes events
+	events := make(chan k8s.WatchEvent, 256)
+
+	if err := client.WatchPods(events); err != nil {
+		log.Fatalf("Failed to start pod watcher: %v", err)
+	}
+
+	if err := client.WatchNodes(events); err != nil {
+		log.Fatalf("Failed to start node watcher: %v", err)
+	}
+
+	// Forward Kubernetes events to WebSocket clients
+	go func() {
+		for event := range events {
+			if err := hub.BroadcastEvent(string(event.Type), event); err != nil {
+				log.Printf("Error broadcasting event: %v", err)
+			}
+		}
+	}()
+
 	// Create API handler
 	apiHandler := api.NewHandler(client)
 
@@ -25,6 +50,9 @@ func main() {
 	mux.HandleFunc("/api/health", healthHandler)
 	mux.HandleFunc("/api/nodes", apiHandler.GetNodes)
 	mux.HandleFunc("/api/pods", apiHandler.GetPods)
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		websocket.ServeWs(hub, w, r)
+	})
 
 	// Enable CORS for development
 	corsHandler := enableCORS(mux)
@@ -36,6 +64,7 @@ func main() {
 	log.Printf("  GET /api/health")
 	log.Printf("  GET /api/nodes")
 	log.Printf("  GET /api/pods")
+	log.Printf("  WS  /ws")
 
 	if err := http.ListenAndServe(":"+port, corsHandler); err != nil {
 		log.Fatalf("Server failed: %v", err)

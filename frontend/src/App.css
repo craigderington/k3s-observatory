@@ -54,6 +54,49 @@ body {
   background: #1a1a1a;
   border-radius: 4px;
   border: 1px solid #333;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.namespace-selector {
+  position: relative;
+}
+
+.namespace-dropdown {
+  background: transparent;
+  border: none;
+  color: #aaaaaa;
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+  margin-left: 0.5rem;
+}
+
+.namespace-dropdown option {
+  background: #1a1a1a;
+  color: #ffffff;
+}
+
+.status-connected {
+  color: #00ff00 !important;
+  border-color: #00ff00 !important;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.status-disconnected {
+  color: #ff4444 !important;
+  border-color: #ff4444 !important;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .scene-container {

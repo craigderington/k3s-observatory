@@ -46,28 +46,34 @@ export default function PodSphere({ pod }: PodSphereProps) {
         />
       </mesh>
 
-      {/* Pod label (only show on hover) */}
+      {/* Pod label - always visible */}
+      <Text
+        position={[0, hovered ? 0.8 : 0.7, 0]}
+        fontSize={hovered ? 0.15 : 0.1}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.01}
+        outlineColor="#000000"
+      >
+        {hovered
+          ? (pod.name.length > 20 ? pod.name.substring(0, 20) + '...' : pod.name)
+          : (pod.name.length > 15 ? pod.name.substring(0, 12) + '...' : pod.name)}
+      </Text>
+
+      {/* Namespace (only show on hover) */}
       {hovered && (
-        <>
-          <Text
-            position={[0, 0.8, 0]}
-            fontSize={0.15}
-            color="white"
-            anchorX="center"
-            anchorY="middle"
-          >
-            {pod.name.length > 20 ? pod.name.substring(0, 20) + '...' : pod.name}
-          </Text>
-          <Text
-            position={[0, -0.8, 0]}
-            fontSize={0.12}
-            color="#aaaaaa"
-            anchorX="center"
-            anchorY="middle"
-          >
-            {pod.namespace}
-          </Text>
-        </>
+        <Text
+          position={[0, -0.8, 0]}
+          fontSize={0.12}
+          color="#aaaaaa"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.01}
+          outlineColor="#000000"
+        >
+          {pod.namespace}
+        </Text>
       )}
     </group>
   );

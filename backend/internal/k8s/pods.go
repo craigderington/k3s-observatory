@@ -14,6 +14,18 @@ func (c *Client) GetPods() ([]Pod, error) {
 		return nil, err
 	}
 
+	// First get nodes to know their positions
+	nodes, err := c.GetNodes()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a map of node names to their positions
+	nodePositions := make(map[string]Position)
+	for _, node := range nodes {
+		nodePositions[node.Name] = node.Position
+	}
+
 	pods := make([]Pod, 0, len(podList.Items))
 
 	// Group pods by node for positioning
@@ -40,26 +52,44 @@ func (c *Client) GetPods() ([]Pod, error) {
 		}
 
 		// Calculate position around the node
-		podIndex := podsByNode[pod.Spec.NodeName]
-		podsByNode[pod.Spec.NodeName]++
+		nodeName := pod.Spec.NodeName
+		podIndex := podsByNode[nodeName]
+		totalPodsOnNode := 0
 
-		angle := float64(podIndex) * 2.0 * math.Pi / math.Max(float64(podsByNode[pod.Spec.NodeName]), 3.0)
+		// Count total pods on this node for better angle distribution
+		for _, p := range podList.Items {
+			if p.Spec.NodeName == nodeName {
+				totalPodsOnNode++
+			}
+		}
+
+		// Calculate orbit angle
+		angle := float64(podIndex) * 2.0 * math.Pi / math.Max(float64(totalPodsOnNode), 1.0)
 		orbitRadius := 3.0
 
+		// Get node position (default to origin if not found)
+		nodePos := Position{X: 0, Y: 0, Z: 0}
+		if pos, ok := nodePositions[nodeName]; ok {
+			nodePos = pos
+		}
+
+		// Position pod relative to its node
 		pods = append(pods, Pod{
 			ID:         string(pod.UID),
 			Name:       pod.Name,
 			Namespace:  pod.Namespace,
 			Status:     string(pod.Status.Phase),
-			NodeName:   pod.Spec.NodeName,
+			NodeName:   nodeName,
 			Containers: containers,
 			CreatedAt:  pod.CreationTimestamp.Time,
 			Position: Position{
-				X: orbitRadius * math.Cos(angle),
-				Y: 0,
-				Z: orbitRadius * math.Sin(angle),
+				X: nodePos.X + orbitRadius*math.Cos(angle),
+				Y: nodePos.Y,
+				Z: nodePos.Z + orbitRadius*math.Sin(angle),
 			},
 		})
+
+		podsByNode[nodeName]++
 	}
 
 	log.Printf("Fetched %d pods from cluster", len(pods))
