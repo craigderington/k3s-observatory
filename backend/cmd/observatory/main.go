@@ -50,6 +50,9 @@ func main() {
 	mux.HandleFunc("/api/health", healthHandler)
 	mux.HandleFunc("/api/nodes", apiHandler.GetNodes)
 	mux.HandleFunc("/api/pods", apiHandler.GetPods)
+	mux.HandleFunc("/api/pods/describe", apiHandler.DescribePod)
+	mux.HandleFunc("/api/nodes/describe", apiHandler.DescribeNode)
+	mux.HandleFunc("/api/pods/logs", apiHandler.GetPodLogs)
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		websocket.ServeWs(hub, w, r)
 	})
@@ -64,6 +67,9 @@ func main() {
 	log.Printf("  GET /api/health")
 	log.Printf("  GET /api/nodes")
 	log.Printf("  GET /api/pods")
+	log.Printf("  GET /api/pods/describe?namespace=X&name=Y")
+	log.Printf("  GET /api/nodes/describe?name=X")
+	log.Printf("  GET /api/pods/logs?namespace=X&name=Y&container=Z")
 	log.Printf("  WS  /ws")
 
 	if err := http.ListenAndServe(":"+port, corsHandler); err != nil {

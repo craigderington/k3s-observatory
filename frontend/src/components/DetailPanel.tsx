@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { Node, Pod } from '../types';
+import Modal from './Modal';
+import { describePod, describeNode, getPodLogs } from '../services/api';
 import './DetailPanel.css';
 
 interface DetailPanelProps {
@@ -8,11 +11,77 @@ interface DetailPanelProps {
 }
 
 export default function DetailPanel({ resource, resourceType, onClose }: DetailPanelProps) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalContent, setModalContent] = useState('');
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+
   if (!resource || !resourceType) return null;
 
   const isPod = resourceType === 'pod';
   const pod = isPod ? (resource as Pod) : null;
   const node = !isPod ? (resource as Node) : null;
+
+  // Handle Describe button click
+  const handleDescribe = async () => {
+    setModalLoading(true);
+    setModalError(null);
+    setModalTitle(isPod ? `Describe Pod: ${pod?.name}` : `Describe Node: ${node?.name}`);
+    setModalOpen(true);
+
+    try {
+      let description: string;
+      if (isPod && pod) {
+        description = await describePod(pod.namespace, pod.name);
+      } else if (node) {
+        description = await describeNode(node.name);
+      } else {
+        throw new Error('Invalid resource');
+      }
+      setModalContent(description);
+    } catch (error) {
+      setModalError(error instanceof Error ? error.message : 'Failed to load description');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Handle View Logs button click
+  const handleViewLogs = async () => {
+    if (!isPod || !pod) return;
+
+    setModalLoading(true);
+    setModalError(null);
+    setModalTitle(`Logs: ${pod.name}`);
+    setModalOpen(true);
+
+    try {
+      // If pod has multiple containers, use the first one
+      const containerName = pod.containers?.[0]?.name || '';
+      const logs = await getPodLogs(pod.namespace, pod.name, containerName);
+      setModalContent(logs);
+    } catch (error) {
+      setModalError(error instanceof Error ? error.message : 'Failed to load logs');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Handle Metrics button click (placeholder for now)
+  const handleMetrics = () => {
+    setModalTitle(isPod ? `Metrics: ${pod?.name}` : `Metrics: ${node?.name}`);
+    setModalContent('Metrics visualization coming soon...');
+    setModalError(null);
+    setModalLoading(false);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setModalContent('');
+    setModalError(null);
+  };
 
   return (
     <>
@@ -84,13 +153,13 @@ export default function DetailPanel({ resource, resourceType, onClose }: DetailP
               <section className="actions-section">
                 <h3>Actions</h3>
                 <div className="action-buttons">
-                  <button className="action-button" disabled title="Coming soon">
+                  <button className="action-button" onClick={handleDescribe}>
                     📋 Describe
                   </button>
-                  <button className="action-button" disabled title="Coming soon">
+                  <button className="action-button" onClick={handleViewLogs}>
                     📜 View Logs
                   </button>
-                  <button className="action-button" disabled title="Coming soon">
+                  <button className="action-button" onClick={handleMetrics}>
                     📊 Metrics
                   </button>
                 </div>
@@ -166,10 +235,10 @@ export default function DetailPanel({ resource, resourceType, onClose }: DetailP
               <section className="actions-section">
                 <h3>Actions</h3>
                 <div className="action-buttons">
-                  <button className="action-button" disabled title="Coming soon">
+                  <button className="action-button" onClick={handleDescribe}>
                     📋 Describe
                   </button>
-                  <button className="action-button" disabled title="Coming soon">
+                  <button className="action-button" onClick={handleMetrics}>
                     📊 Metrics
                   </button>
                   <button className="action-button" disabled title="Coming soon">
@@ -181,6 +250,22 @@ export default function DetailPanel({ resource, resourceType, onClose }: DetailP
           ) : null}
         </div>
       </div>
+
+      {/* Modal for Describe, Logs, Metrics */}
+      <Modal isOpen={modalOpen} onClose={handleCloseModal} title={modalTitle}>
+        {modalLoading ? (
+          <div className="modal-loading">
+            <div className="spinner"></div>
+            <span>Loading...</span>
+          </div>
+        ) : modalError ? (
+          <div className="modal-error">
+            <p>❌ {modalError}</p>
+          </div>
+        ) : (
+          <pre>{modalContent}</pre>
+        )}
+      </Modal>
     </>
   );
 }

@@ -25,3 +25,31 @@ export async function checkHealth(): Promise<{ status: string; service: string }
   }
   return response.json();
 }
+
+export async function describePod(namespace: string, name: string): Promise<string> {
+  const response = await fetch(`${API_BASE}/pods/describe?namespace=${encodeURIComponent(namespace)}&name=${encodeURIComponent(name)}`);
+  if (!response.ok) {
+    throw new Error('Failed to describe pod');
+  }
+  return response.text();
+}
+
+export async function describeNode(name: string): Promise<string> {
+  const response = await fetch(`${API_BASE}/nodes/describe?name=${encodeURIComponent(name)}`);
+  if (!response.ok) {
+    throw new Error('Failed to describe node');
+  }
+  return response.text();
+}
+
+export async function getPodLogs(namespace: string, name: string, container?: string): Promise<string> {
+  let url = `${API_BASE}/pods/logs?namespace=${encodeURIComponent(namespace)}&name=${encodeURIComponent(name)}`;
+  if (container) {
+    url += `&container=${encodeURIComponent(container)}`;
+  }
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to get pod logs');
+  }
+  return response.text();
+}
