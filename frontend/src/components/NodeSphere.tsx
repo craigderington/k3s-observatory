@@ -5,9 +5,10 @@ import { Text } from '@react-three/drei';
 
 interface NodeSphereProps {
   node: Node;
+  onClick?: (node: Node) => void;
 }
 
-export default function NodeSphere({ node }: NodeSphereProps) {
+export default function NodeSphere({ node, onClick }: NodeSphereProps) {
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
 
@@ -21,6 +22,10 @@ export default function NodeSphere({ node }: NodeSphereProps) {
         ref={meshRef}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick?.(node);
+        }}
         scale={hovered ? 1.2 : 1}
       >
         <sphereGeometry args={[1, 32, 32]} />

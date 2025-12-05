@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Scene from './components/Scene';
 import ToastContainer, { Toast } from './components/ToastContainer';
+import DetailPanel from './components/DetailPanel';
 import { fetchNodes, fetchPods } from './services/api';
 import { useWebSocket } from './hooks/useWebSocket';
 import { Node, Pod } from './types';
@@ -16,6 +17,8 @@ export default function App() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [selectedNamespace, setSelectedNamespace] = useState<string>('all');
   const [hasConnectedOnce, setHasConnectedOnce] = useState(false);
+  const [selectedResource, setSelectedResource] = useState<Pod | Node | null>(null);
+  const [selectedResourceType, setSelectedResourceType] = useState<'pod' | 'node' | null>(null);
 
   // Track raw pods before redistribution
   const [rawPods, setRawPods] = useState<Pod[]>([]);
@@ -34,6 +37,24 @@ export default function App() {
   // Remove toast
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Handle pod click
+  const handlePodClick = useCallback((pod: Pod) => {
+    setSelectedResource(pod);
+    setSelectedResourceType('pod');
+  }, []);
+
+  // Handle node click
+  const handleNodeClick = useCallback((node: Node) => {
+    setSelectedResource(node);
+    setSelectedResourceType('node');
+  }, []);
+
+  // Handle detail panel close
+  const handleDetailPanelClose = useCallback(() => {
+    setSelectedResource(null);
+    setSelectedResourceType(null);
   }, []);
 
   // Helper function to redistribute pods evenly around their nodes
@@ -288,9 +309,19 @@ export default function App() {
         </div>
       </header>
       <div className="scene-container">
-        <Scene nodes={nodes} pods={filteredPods} />
+        <Scene
+          nodes={nodes}
+          pods={filteredPods}
+          onPodClick={handlePodClick}
+          onNodeClick={handleNodeClick}
+        />
       </div>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <DetailPanel
+        resource={selectedResource}
+        resourceType={selectedResourceType}
+        onClose={handleDetailPanelClose}
+      />
     </div>
   );
 }

@@ -5,9 +5,10 @@ import { Text } from '@react-three/drei';
 
 interface PodSphereProps {
   pod: Pod;
+  onClick?: (pod: Pod) => void;
 }
 
-export default function PodSphere({ pod }: PodSphereProps) {
+export default function PodSphere({ pod, onClick }: PodSphereProps) {
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
 
@@ -36,6 +37,10 @@ export default function PodSphere({ pod }: PodSphereProps) {
         ref={meshRef}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick?.(pod);
+        }}
         scale={hovered ? 0.6 : 0.5}
       >
         <sphereGeometry args={[1, 16, 16]} />

@@ -1,0 +1,347 @@
+/* Backdrop */
+.detail-panel-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Panel */
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s ease-out;
+  color: #ffffff;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* Header */
+.detail-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.detail-panel-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Content */
+.detail-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.detail-panel-content section {
+  margin-bottom: 2rem;
+}
+
+.detail-panel-content section:last-child {
+  margin-bottom: 0;
+}
+
+.detail-panel-content h3 {
+  margin: 0 0 1rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+}
+
+/* Info Grid */
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-item .label {
+  font-weight: 500;
+  color: #aaa;
+  font-size: 0.875rem;
+}
+
+.info-item .value {
+  font-weight: 600;
+  color: #ffffff;
+  text-align: right;
+  word-break: break-all;
+}
+
+/* Badges */
+.namespace-badge {
+  background: #3b82f6;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge.status-running {
+  background: #10b981;
+  color: white;
+}
+
+.status-badge.status-pending {
+  background: #3b82f6;
+  color: white;
+}
+
+.status-badge.status-failed {
+  background: #ef4444;
+  color: white;
+}
+
+.status-badge.status-succeeded {
+  background: #6b7280;
+  color: white;
+}
+
+.status-badge.status-ready {
+  background: #10b981;
+  color: white;
+}
+
+.status-badge.status-notready {
+  background: #ef4444;
+  color: white;
+}
+
+/* Containers List */
+.containers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.container-item {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.container-name {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #ffffff;
+}
+
+.container-details {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.restart-count {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+/* Resource Stats */
+.resource-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.resource-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.resource-label {
+  font-weight: 500;
+  color: #aaa;
+  font-size: 0.875rem;
+}
+
+.resource-bar {
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.resource-fill {
+  height: 100%;
+  border-radius: 12px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.resource-fill.cpu {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.resource-fill.memory {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+
+.resource-text {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+/* Labels List */
+.labels-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.label-item {
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: 'Courier New', monospace;
+}
+
+.label-key {
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.label-value {
+  color: #aaa;
+  margin-left: 0.5rem;
+}
+
+/* Actions Section */
+.actions-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1.5rem !important;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.action-button {
+  padding: 0.75rem 1rem;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: 6px;
+  color: #60a5fa;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.action-button:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.6);
+  transform: translateX(2px);
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Scrollbar Styling */
+.detail-panel-content::-webkit-scrollbar,
+.labels-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.detail-panel-content::-webkit-scrollbar-track,
+.labels-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.detail-panel-content::-webkit-scrollbar-thumb,
+.labels-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.detail-panel-content::-webkit-scrollbar-thumb:hover,
+.labels-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .detail-panel {
+    width: 100%;
+  }
+}

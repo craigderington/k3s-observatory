@@ -7,9 +7,11 @@ import PodSphere from './PodSphere';
 interface SceneProps {
   nodes: Node[];
   pods: Pod[];
+  onPodClick?: (pod: Pod) => void;
+  onNodeClick?: (node: Node) => void;
 }
 
-export default function Scene({ nodes, pods }: SceneProps) {
+export default function Scene({ nodes, pods, onPodClick, onNodeClick }: SceneProps) {
   return (
     <Canvas camera={{ position: [15, 15, 15], fov: 60 }}>
       <color attach="background" args={['#0a0a0a']} />
@@ -24,12 +26,12 @@ export default function Scene({ nodes, pods }: SceneProps) {
 
       {/* Render nodes */}
       {nodes.map((node) => (
-        <NodeSphere key={node.id} node={node} />
+        <NodeSphere key={node.id} node={node} onClick={onNodeClick} />
       ))}
 
       {/* Render pods */}
       {pods.map((pod) => (
-        <PodSphere key={pod.id} pod={pod} />
+        <PodSphere key={pod.id} pod={pod} onClick={onPodClick} />
       ))}
 
       {/* Camera controls */}
