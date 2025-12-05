@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Node, Pod } from '../types';
 import Modal from './Modal';
-import { describePod, describeNode, getPodLogs } from '../services/api';
+import MetricsView from './MetricsView';
+import { describePod, describeNode, getPodLogs, getPodMetrics, getNodeMetrics, Metrics } from '../services/api';
 import './DetailPanel.css';
 
 interface DetailPanelProps {
@@ -16,6 +17,7 @@ export default function DetailPanel({ resource, resourceType, onClose }: DetailP
   const [modalContent, setModalContent] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [metricsData, setMetricsData] = useState<Metrics | null>(null);
 
   if (!resource || !resourceType) return null;
 
@@ -68,19 +70,36 @@ export default function DetailPanel({ resource, resourceType, onClose }: DetailP
     }
   };
 
-  // Handle Metrics button click (placeholder for now)
-  const handleMetrics = () => {
-    setModalTitle(isPod ? `Metrics: ${pod?.name}` : `Metrics: ${node?.name}`);
-    setModalContent('Metrics visualization coming soon...');
+  // Handle Metrics button click
+  const handleMetrics = async () => {
+    setModalLoading(true);
     setModalError(null);
-    setModalLoading(false);
+    setMetricsData(null);
+    setModalTitle(isPod ? `Metrics: ${pod?.name}` : `Metrics: ${node?.name}`);
     setModalOpen(true);
+
+    try {
+      let metrics: Metrics;
+      if (isPod && pod) {
+        metrics = await getPodMetrics(pod.namespace, pod.name);
+      } else if (node) {
+        metrics = await getNodeMetrics(node.name);
+      } else {
+        throw new Error('Invalid resource');
+      }
+      setMetricsData(metrics);
+    } catch (error) {
+      setModalError(error instanceof Error ? error.message : 'Failed to load metrics');
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
     setModalOpen(false);
     setModalContent('');
     setModalError(null);
+    setMetricsData(null);
   };
 
   return (
@@ -262,6 +281,8 @@ export default function DetailPanel({ resource, resourceType, onClose }: DetailP
           <div className="modal-error">
             <p>❌ {modalError}</p>
           </div>
+        ) : metricsData && resource ? (
+          <MetricsView metrics={metricsData} resource={resource} resourceType={resourceType!} />
         ) : (
           <pre>{modalContent}</pre>
         )}

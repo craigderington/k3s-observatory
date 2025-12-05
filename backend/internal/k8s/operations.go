@@ -3,8 +3,11 @@ package k8s
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -201,4 +204,146 @@ func (c *Client) GetPodLogs(namespace, podName, containerName string, tailLines 
 	}
 
 	return buf.String(), nil
+}
+
+// PodMetrics represents resource metrics for a pod
+type PodMetrics struct {
+	Name        string  `json:"name"`
+	Namespace   string  `json:"namespace"`
+	CPUUsage    float64 `json:"cpuUsage"`    // in millicores
+	MemoryUsage float64 `json:"memoryUsage"` // in MB
+	Timestamp   string  `json:"timestamp"`
+}
+
+// NodeMetrics represents resource metrics for a node
+type NodeMetrics struct {
+	Name        string  `json:"name"`
+	CPUUsage    float64 `json:"cpuUsage"`    // in millicores
+	MemoryUsage float64 `json:"memoryUsage"` // in MB
+	Timestamp   string  `json:"timestamp"`
+}
+
+// GetPodMetrics fetches current resource usage for a pod
+func (c *Client) GetPodMetrics(namespace, name string) (*PodMetrics, error) {
+	// Use the metrics.k8s.io API
+	data, err := c.Clientset.RESTClient().
+		Get().
+		AbsPath("/apis/metrics.k8s.io/v1beta1/namespaces/" + namespace + "/pods/" + name).
+		DoRaw(c.ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pod metrics: %w", err)
+	}
+
+	// Parse the metrics response
+	var result struct {
+		Metadata struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+		} `json:"metadata"`
+		Timestamp  string `json:"timestamp"`
+		Containers []struct {
+			Name  string `json:"name"`
+			Usage struct {
+				CPU    string `json:"cpu"`
+				Memory string `json:"memory"`
+			} `json:"usage"`
+		} `json:"containers"`
+	}
+
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse metrics: %w", err)
+	}
+
+	// Aggregate container metrics
+	var totalCPU, totalMemory float64
+	for _, container := range result.Containers {
+		// Parse CPU (format: "123n" or "456m")
+		cpuStr := container.Usage.CPU
+		if strings.HasSuffix(cpuStr, "n") {
+			// nanocores to millicores
+			val, _ := strconv.ParseFloat(strings.TrimSuffix(cpuStr, "n"), 64)
+			totalCPU += val / 1000000
+		} else if strings.HasSuffix(cpuStr, "m") {
+			// millicores
+			val, _ := strconv.ParseFloat(strings.TrimSuffix(cpuStr, "m"), 64)
+			totalCPU += val
+		}
+
+		// Parse Memory (format: "123456Ki" or "789Mi")
+		memStr := container.Usage.Memory
+		if strings.HasSuffix(memStr, "Ki") {
+			// KiB to MB
+			val, _ := strconv.ParseFloat(strings.TrimSuffix(memStr, "Ki"), 64)
+			totalMemory += val / 1024
+		} else if strings.HasSuffix(memStr, "Mi") {
+			// MiB to MB (approximately)
+			val, _ := strconv.ParseFloat(strings.TrimSuffix(memStr, "Mi"), 64)
+			totalMemory += val
+		}
+	}
+
+	return &PodMetrics{
+		Name:        result.Metadata.Name,
+		Namespace:   result.Metadata.Namespace,
+		CPUUsage:    totalCPU,
+		MemoryUsage: totalMemory,
+		Timestamp:   result.Timestamp,
+	}, nil
+}
+
+// GetNodeMetrics fetches current resource usage for a node
+func (c *Client) GetNodeMetrics(name string) (*NodeMetrics, error) {
+	data, err := c.Clientset.RESTClient().
+		Get().
+		AbsPath("/apis/metrics.k8s.io/v1beta1/nodes/" + name).
+		DoRaw(c.ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get node metrics: %w", err)
+	}
+
+	var result struct {
+		Metadata struct {
+			Name string `json:"name"`
+		} `json:"metadata"`
+		Timestamp string `json:"timestamp"`
+		Usage     struct {
+			CPU    string `json:"cpu"`
+			Memory string `json:"memory"`
+		} `json:"usage"`
+	}
+
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse metrics: %w", err)
+	}
+
+	// Parse CPU
+	var cpuUsage float64
+	cpuStr := result.Usage.CPU
+	if strings.HasSuffix(cpuStr, "n") {
+		val, _ := strconv.ParseFloat(strings.TrimSuffix(cpuStr, "n"), 64)
+		cpuUsage = val / 1000000
+	} else if strings.HasSuffix(cpuStr, "m") {
+		val, _ := strconv.ParseFloat(strings.TrimSuffix(cpuStr, "m"), 64)
+		cpuUsage = val
+	}
+
+	// Parse Memory
+	var memoryUsage float64
+	memStr := result.Usage.Memory
+	if strings.HasSuffix(memStr, "Ki") {
+		val, _ := strconv.ParseFloat(strings.TrimSuffix(memStr, "Ki"), 64)
+		memoryUsage = val / 1024
+	} else if strings.HasSuffix(memStr, "Mi") {
+		val, _ := strconv.ParseFloat(strings.TrimSuffix(memStr, "Mi"), 64)
+		memoryUsage = val
+	}
+
+	return &NodeMetrics{
+		Name:        result.Metadata.Name,
+		CPUUsage:    cpuUsage,
+		MemoryUsage: memoryUsage,
+		Timestamp:   result.Timestamp,
+	}, nil
 }

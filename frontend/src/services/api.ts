@@ -53,3 +53,27 @@ export async function getPodLogs(namespace: string, name: string, container?: st
   }
   return response.text();
 }
+
+export interface Metrics {
+  name: string;
+  namespace?: string;
+  cpuUsage: number;    // in millicores
+  memoryUsage: number; // in MB
+  timestamp: string;
+}
+
+export async function getPodMetrics(namespace: string, name: string): Promise<Metrics> {
+  const response = await fetch(`${API_BASE}/pods/metrics?namespace=${encodeURIComponent(namespace)}&name=${encodeURIComponent(name)}`);
+  if (!response.ok) {
+    throw new Error('Failed to get pod metrics');
+  }
+  return response.json();
+}
+
+export async function getNodeMetrics(name: string): Promise<Metrics> {
+  const response = await fetch(`${API_BASE}/nodes/metrics?name=${encodeURIComponent(name)}`);
+  if (!response.ok) {
+    throw new Error('Failed to get node metrics');
+  }
+  return response.json();
+}

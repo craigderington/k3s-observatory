@@ -153,3 +153,65 @@ func (h *Handler) GetPodLogs(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Served logs for pod: %s/%s (container: %s)", namespace, name, container)
 }
+
+// GetPodMetrics handles GET /api/pods/metrics
+func (h *Handler) GetPodMetrics(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	namespace := r.URL.Query().Get("namespace")
+	name := r.URL.Query().Get("name")
+
+	if namespace == "" || name == "" {
+		http.Error(w, "namespace and name query parameters required", http.StatusBadRequest)
+		return
+	}
+
+	metrics, err := h.k8sClient.GetPodMetrics(namespace, name)
+	if err != nil {
+		log.Printf("Error getting metrics for pod %s/%s: %v", namespace, name, err)
+		http.Error(w, "Failed to get pod metrics", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(metrics); err != nil {
+		log.Printf("Error encoding metrics response: %v", err)
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Served metrics for pod: %s/%s", namespace, name)
+}
+
+// GetNodeMetrics handles GET /api/nodes/metrics
+func (h *Handler) GetNodeMetrics(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		http.Error(w, "name query parameter required", http.StatusBadRequest)
+		return
+	}
+
+	metrics, err := h.k8sClient.GetNodeMetrics(name)
+	if err != nil {
+		log.Printf("Error getting metrics for node %s: %v", name, err)
+		http.Error(w, "Failed to get node metrics", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(metrics); err != nil {
+		log.Printf("Error encoding metrics response: %v", err)
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Served metrics for node: %s", name)
+}
