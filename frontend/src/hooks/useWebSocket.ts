@@ -91,11 +91,17 @@ export function useWebSocket({
 
     ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
-        console.log('[WebSocket] Received message:', data.type);
-        onMessageRef.current?.(data);
+        // Handle multiple JSON messages separated by newlines
+        const messages = event.data.trim().split('\n');
+        for (const message of messages) {
+          if (message.trim()) {
+            const data = JSON.parse(message);
+            console.log('[WebSocket] Received message:', data.type);
+            onMessageRef.current?.(data);
+          }
+        }
       } catch (error) {
-        console.error('[WebSocket] Failed to parse message:', error);
+        console.error('[WebSocket] Failed to parse message:', error, 'Raw data:', event.data);
       }
     };
 

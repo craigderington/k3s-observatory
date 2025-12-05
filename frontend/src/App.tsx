@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Scene from './components/Scene';
 import ToastContainer, { Toast } from './components/ToastContainer';
 import { fetchNodes, fetchPods } from './services/api';
@@ -17,6 +17,14 @@ export default function App() {
   const [selectedNamespace, setSelectedNamespace] = useState<string>('all');
   const [hasConnectedOnce, setHasConnectedOnce] = useState(false);
 
+  // Use refs to avoid recreating callbacks when state changes
+  const nodesRef = useRef<Node[]>([]);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+
   // Add toast notification
   const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
     const toast: Toast = {
@@ -33,6 +41,46 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // Redistribute pods evenly around their nodes
+  const redistributePods = useCallback((pods: Pod[], nodes: Node[]) => {
+    // Create a map of node positions
+    const nodePositions = new Map(nodes.map(n => [n.name, n.position]));
+
+    // Group pods by node
+    const podsByNode = new Map<string, Pod[]>();
+    pods.forEach(pod => {
+      if (pod.nodeName) {
+        const nodePods = podsByNode.get(pod.nodeName) || [];
+        nodePods.push(pod);
+        podsByNode.set(pod.nodeName, nodePods);
+      }
+    });
+
+    // Recalculate positions for pods on each node
+    return pods.map(pod => {
+      if (!pod.nodeName) return pod; // Unscheduled pods stay at origin
+
+      const nodePos = nodePositions.get(pod.nodeName) || { x: 0, y: 0, z: 0 };
+      const nodePods = podsByNode.get(pod.nodeName) || [];
+      const podIndex = nodePods.findIndex(p => p.id === pod.id);
+      const totalPods = nodePods.length;
+
+      if (totalPods === 0) return pod;
+
+      const angle = (podIndex * 2.0 * Math.PI) / totalPods;
+      const orbitRadius = 3.0;
+
+      return {
+        ...pod,
+        position: {
+          x: nodePos.x + orbitRadius * Math.cos(angle),
+          y: nodePos.y,
+          z: nodePos.z + orbitRadius * Math.sin(angle),
+        },
+      };
+    });
+  }, []);
+
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback((event: { type: string; data: any }) => {
     const { type, data } = event;
@@ -46,16 +94,24 @@ export default function App() {
               return prev;
             }
             addToast(`Pod created: ${data.pod.namespace}/${data.pod.name}`, 'success');
-            return [...prev, data.pod];
+            const newPods = [...prev, data.pod];
+            return redistributePods(newPods, nodesRef.current);
           });
         }
         break;
 
       case 'pod_modified':
         if (data.pod) {
-          setPods((prev) =>
-            prev.map((p) => (p.id === data.pod.id ? data.pod : p))
-          );
+          setPods((prev) => {
+            const oldPod = prev.find((p) => p.id === data.pod.id);
+            const updatedPods = prev.map((p) => (p.id === data.pod.id ? data.pod : p));
+
+            // Redistribute if pod was assigned to a node (nodeName changed)
+            if (oldPod && oldPod.nodeName !== data.pod.nodeName && data.pod.nodeName) {
+              return redistributePods(updatedPods, nodesRef.current);
+            }
+            return updatedPods;
+          });
         }
         break;
 
@@ -66,7 +122,8 @@ export default function App() {
             if (pod) {
               addToast(`Pod deleted: ${pod.namespace}/${pod.name}`, 'warning');
             }
-            return prev.filter((p) => p.id !== data.pod.id);
+            const remainingPods = prev.filter((p) => p.id !== data.pod.id);
+            return redistributePods(remainingPods, nodesRef.current);
           });
         }
         break;
@@ -103,7 +160,7 @@ export default function App() {
         }
         break;
     }
-  }, [addToast]);
+  }, [addToast, redistributePods]);
 
   // WebSocket callbacks wrapped in useCallback to prevent reconnections
   const handleConnect = useCallback(() => {
