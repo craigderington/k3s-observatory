@@ -189,6 +189,33 @@ export default function App() {
           });
         }
         break;
+
+      case 'metrics_update':
+        if (data.pods) {
+          setRawPods((prev) =>
+            prev.map((pod) => {
+              // Find matching metrics for this pod
+              const metrics = data.pods.find((m: any) => m.podId === pod.id);
+              if (!metrics) return pod;
+
+              // Update pod and container metrics
+              return {
+                ...pod,
+                cpu: metrics.totalCpu,
+                memory: metrics.totalMemory,
+                containers: pod.containers.map((container) => {
+                  const containerMetrics = metrics.containers.find(
+                    (cm: any) => cm.name === container.name
+                  );
+                  return containerMetrics
+                    ? { ...container, cpu: containerMetrics.cpu, memory: containerMetrics.memory }
+                    : container;
+                }),
+              };
+            })
+          );
+        }
+        break;
     }
   }, [addToast]);
 

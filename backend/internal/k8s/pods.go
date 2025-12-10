@@ -34,7 +34,7 @@ func (c *Client) GetPods() ([]Pod, error) {
 	for _, pod := range podList.Items {
 		// Extract container info
 		containers := make([]Container, 0, len(pod.Status.ContainerStatuses))
-		for _, cs := range pod.Status.ContainerStatuses {
+		for i, cs := range pod.Status.ContainerStatuses {
 			status := "Unknown"
 			if cs.State.Running != nil {
 				status = "Running"
@@ -48,6 +48,9 @@ func (c *Client) GetPods() ([]Pod, error) {
 				Name:     cs.Name,
 				Status:   status,
 				Restarts: cs.RestartCount,
+				Type:     determineContainerType(cs.Name, false, i),
+				CPU:      0, // Will be updated by metrics_update events
+				Memory:   0, // Will be updated by metrics_update events
 			})
 		}
 
@@ -87,6 +90,8 @@ func (c *Client) GetPods() ([]Pod, error) {
 				Y: nodePos.Y,
 				Z: nodePos.Z + orbitRadius*math.Sin(angle),
 			},
+			CPU:    0, // Will be updated by metrics_update events
+			Memory: 0, // Will be updated by metrics_update events
 		})
 
 		podsByNode[nodeName]++

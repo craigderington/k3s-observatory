@@ -347,3 +347,79 @@ func (c *Client) GetNodeMetrics(name string) (*NodeMetrics, error) {
 		Timestamp:   result.Timestamp,
 	}, nil
 }
+
+// ContainerMetricsData represents metrics for a single container
+type ContainerMetricsData struct {
+	Name   string  `json:"name"`
+	CPU    float64 `json:"cpu"`    // millicores
+	Memory float64 `json:"memory"` // MB
+}
+
+// GetPodMetricsDetailed fetches per-container resource usage for a pod
+func (c *Client) GetPodMetricsDetailed(namespace, name string) ([]ContainerMetricsData, error) {
+	// Use the metrics.k8s.io API
+	data, err := c.Clientset.RESTClient().
+		Get().
+		AbsPath("/apis/metrics.k8s.io/v1beta1/namespaces/" + namespace + "/pods/" + name).
+		DoRaw(c.ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pod metrics: %w", err)
+	}
+
+	// Parse the metrics response
+	var result struct {
+		Containers []struct {
+			Name  string `json:"name"`
+			Usage struct {
+				CPU    string `json:"cpu"`
+				Memory string `json:"memory"`
+			} `json:"usage"`
+		} `json:"containers"`
+	}
+
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse metrics: %w", err)
+	}
+
+	// Convert to our type
+	containerMetrics := make([]ContainerMetricsData, 0, len(result.Containers))
+	for _, container := range result.Containers {
+		cpu := parseMetricValue(container.Usage.CPU, "cpu")
+		memory := parseMetricValue(container.Usage.Memory, "memory")
+
+		containerMetrics = append(containerMetrics, ContainerMetricsData{
+			Name:   container.Name,
+			CPU:    cpu,
+			Memory: memory,
+		})
+	}
+
+	return containerMetrics, nil
+}
+
+// parseMetricValue parses Kubernetes metric values into float64
+func parseMetricValue(value string, metricType string) float64 {
+	if metricType == "cpu" {
+		if strings.HasSuffix(value, "n") {
+			// nanocores to millicores
+			val, _ := strconv.ParseFloat(strings.TrimSuffix(value, "n"), 64)
+			return val / 1000000
+		} else if strings.HasSuffix(value, "m") {
+			// millicores
+			val, _ := strconv.ParseFloat(strings.TrimSuffix(value, "m"), 64)
+			return val
+		}
+	} else if metricType == "memory" {
+		if strings.HasSuffix(value, "Ki") {
+			// KiB to MB
+			val, _ := strconv.ParseFloat(strings.TrimSuffix(value, "Ki"), 64)
+			return val / 1024
+		} else if strings.HasSuffix(value, "Mi") {
+			// MiB
+			val, _ := strconv.ParseFloat(strings.TrimSuffix(value, "Mi"), 64)
+			return val
+		}
+	}
+	return 0
+}

@@ -121,7 +121,7 @@ func (c *Client) WatchNodes(events chan<- WatchEvent) error {
 // Helper function to convert Kubernetes pod to our Pod type
 func (c *Client) convertPod(kubePod *corev1.Pod) Pod {
 	containers := make([]Container, 0, len(kubePod.Status.ContainerStatuses))
-	for _, cs := range kubePod.Status.ContainerStatuses {
+	for i, cs := range kubePod.Status.ContainerStatuses {
 		status := "Unknown"
 		if cs.State.Running != nil {
 			status = "Running"
@@ -135,6 +135,9 @@ func (c *Client) convertPod(kubePod *corev1.Pod) Pod {
 			Name:     cs.Name,
 			Status:   status,
 			Restarts: cs.RestartCount,
+			Type:     determineContainerType(cs.Name, false, i),
+			CPU:      0, // Will be updated by metrics_update events
+			Memory:   0, // Will be updated by metrics_update events
 		})
 	}
 
@@ -155,6 +158,8 @@ func (c *Client) convertPod(kubePod *corev1.Pod) Pod {
 			Y: 0,
 			Z: orbitRadius * math.Sin(angle),
 		},
+		CPU:    0, // Will be updated by metrics_update events
+		Memory: 0, // Will be updated by metrics_update events
 	}
 }
 

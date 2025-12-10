@@ -5,6 +5,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/craigderington/lantern/internal/api"
 	"github.com/craigderington/lantern/internal/k8s"
@@ -42,6 +45,19 @@ func main() {
 		}
 	}()
 
+	// Start metrics fetcher (5 second interval)
+	metricsFetcher := k8s.NewMetricsFetcher(client, 5*time.Second)
+	metricsChannel := metricsFetcher.Start()
+
+	// Forward metrics updates to WebSocket clients
+	go func() {
+		for update := range metricsChannel {
+			if err := hub.BroadcastEvent("metrics_update", update); err != nil {
+				log.Printf("Error broadcasting metrics: %v", err)
+			}
+		}
+	}()
+
 	// Create API handler
 	apiHandler := api.NewHandler(client)
 
@@ -62,6 +78,17 @@ func main() {
 	// Enable CORS for development
 	corsHandler := enableCORS(mux)
 
+	// Handle shutdown signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		log.Println("Shutting down gracefully...")
+		metricsFetcher.Stop()
+		os.Exit(0)
+	}()
+
 	// Start server
 	port := getEnv("PORT", "8000")
 	log.Printf("Observatory backend starting on port %s...", port)
@@ -75,6 +102,7 @@ func main() {
 	log.Printf("  GET /api/pods/metrics?namespace=X&name=Y")
 	log.Printf("  GET /api/nodes/metrics?name=X")
 	log.Printf("  WS  /ws")
+	log.Printf("Metrics fetcher running (5s interval)")
 
 	if err := http.ListenAndServe(":"+port, corsHandler); err != nil {
 		log.Fatalf("Server failed: %v", err)

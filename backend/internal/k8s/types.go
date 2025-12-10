@@ -1,6 +1,9 @@
 package k8s
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // Node represents a simplified Kubernetes node for the frontend
 type Node struct {
@@ -24,13 +27,18 @@ type Pod struct {
 	Containers []Container `json:"containers"`
 	CreatedAt  time.Time   `json:"createdAt"`
 	Position   Position    `json:"position"`
+	CPU        float64     `json:"cpu"`    // total CPU usage in millicores
+	Memory     float64     `json:"memory"` // total memory usage in MB
 }
 
 // Container represents a container within a pod
 type Container struct {
-	Name     string `json:"name"`
-	Status   string `json:"status"`
-	Restarts int32  `json:"restarts"`
+	Name     string  `json:"name"`
+	Status   string  `json:"status"`
+	Restarts int32   `json:"restarts"`
+	Type     string  `json:"type"`   // "main", "sidecar", or "init"
+	CPU      float64 `json:"cpu"`    // millicores
+	Memory   float64 `json:"memory"` // MB
 }
 
 // ResourceUsage represents resource consumption
@@ -44,4 +52,34 @@ type Position struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
 	Z float64 `json:"z"`
+}
+
+// determineContainerType identifies whether a container is main, sidecar, or init
+func determineContainerType(containerName string, isInitContainer bool, index int) string {
+	if isInitContainer {
+		return "init"
+	}
+
+	// Common sidecar patterns
+	sidecarPatterns := []string{
+		"istio-proxy", "envoy", "linkerd-proxy",
+		"cloudsql-proxy", "vault-agent",
+		"fluentd", "filebeat", "logstash",
+		"prometheus-exporter", "jaeger-agent",
+	}
+
+	lowerName := strings.ToLower(containerName)
+	for _, pattern := range sidecarPatterns {
+		if strings.Contains(lowerName, pattern) {
+			return "sidecar"
+		}
+	}
+
+	// First container is typically main
+	if index == 0 {
+		return "main"
+	}
+
+	// Default to sidecar for additional containers
+	return "sidecar"
 }
