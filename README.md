@@ -4,7 +4,7 @@
 
 **Observatory** is a beautiful, real-time 3D visualization dashboard that lets you see your Kubernetes cluster's heartbeat. Watch pods spin up, scale, and disappear in stunning 3D space. No more endless `kubectl get pods` commands - just open your browser and observe your infrastructure come to life.
 
-![k3s-observatory](https://raw.githubusercontent.com/craigderington/k3s-observatory/refs/heads/master/screenshots/k3s-observatory-node-2.png)
+![k3s-observatory](https://raw.githubusercontent.com/craigderington/k3s-observatory/refs/heads/master/screenshots/k3s-observatory-node2-sidecars.png)
 
 
 ![Status](https://img.shields.io/badge/status-alpha-orange)
