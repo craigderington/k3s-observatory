@@ -4,25 +4,43 @@
 
 **Observatory** is a beautiful, real-time 3D visualization dashboard that lets you see your Kubernetes cluster's heartbeat. Watch pods spin up, scale, and disappear in stunning 3D space. No more endless `kubectl get pods` commands - just open your browser and observe your infrastructure come to life.
 
+### 🎉 What's New in Phase 3
+
+- **📊 Resource Metrics** - Pods visually scale with memory usage and glow based on CPU load
+- **🛰️ Sidecar Visualization** - Multi-container pods show sidecars as orbiting satellites
+- **🔥 Heat Effects** - Watch CPU usage in real-time with color-coded glow (blue to red)
+- **📈 Live Updates** - Metrics stream every 5 seconds for instant visual feedback
+
 ![k3s-observatory](https://raw.githubusercontent.com/craigderington/k3s-observatory/refs/heads/master/screenshots/k3s-observatory-node2-sidecars.png)
 
 
-![Status](https://img.shields.io/badge/status-alpha-orange)
+![Status](https://img.shields.io/badge/status-beta-blue)
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)
 ![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react)
-![License](https://img.shields.io/badge/license-MIT-blue)
+![Three.js](https://img.shields.io/badge/Three.js-latest-black?logo=three.js)
+![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 ## ✨ Features
 
+### Core Visualization
 - **🌌 Immersive 3D Visualization** - Nodes as spheres, pods orbiting in space with Three.js/React Three Fiber
 - **⚡ Real-Time Updates** - WebSocket-powered live updates with zero page refreshes
 - **🎨 Color-Coded Status** - Instant visual feedback (🟢 Running, 🔵 Pending, 🔴 Failed, ⚠️ Warning)
+- **🖱️ Interactive Controls** - Orbit, zoom, and pan through your cluster
+- **🎯 Zero Config** - Works out of the box with your existing kubeconfig
+
+### Resource Visualization ✨ **NEW**
+- **📊 Memory-Based Sizing** - Pod spheres scale based on actual memory usage (logarithmic scaling)
+- **🔥 CPU Heat Glow** - Visual CPU usage gradient: Blue (low) → Cyan → Yellow → Orange → Red (high)
+- **🛰️ Sidecar Satellites** - Multi-container pods show sidecars (istio-proxy, envoy, etc.) as orbiting moons
+- **📈 Real-Time Metrics** - Live CPU/memory updates every 5 seconds via metrics-server integration
+- **🎭 Smart Container Detection** - Automatic identification of main containers vs sidecars
+
+### User Experience
 - **📢 Smart Toast Notifications** - Non-intrusive alerts for pod/node lifecycle events
 - **🏷️ Namespace Filtering** - Focus on what matters with dropdown namespace selection
 - **🔄 Dynamic Redistribution** - Pods smoothly reposition when scaled up/down
 - **💚 Connection Health** - Live/Offline indicator with automatic reconnection
-- **🖱️ Interactive Controls** - Orbit, zoom, and pan through your cluster
-- **🎯 Zero Config** - Works out of the box with your existing kubeconfig
 
 ## 📸 Screenshots
 
@@ -36,6 +54,9 @@
 - **Node.js 18+** - Frontend tooling
 - **k3s/Kubernetes cluster** - The cluster you want to visualize
 - **kubectl configured** - With access to your cluster
+- **metrics-server** (optional but recommended) - For resource visualization features
+
+> **Note:** Resource visualization features (CPU/memory sizing and glow) require metrics-server. If not installed, Observatory will still work but won't show resource metrics.
 
 ### Installation
 
@@ -81,6 +102,31 @@ Navigate to **http://localhost:3000** and watch your cluster come to life! 🎉
 - **🏷️ Filter**: Use the namespace dropdown to focus on specific namespaces
 - **👆 Inspect**: Hover over pods/nodes to see their names
 - **📊 Monitor**: Watch the Live status indicator and pod/node counts in the header
+
+### Understanding the Visualization
+
+**Pod Colors (Health Status):**
+- 🟢 **Green** - Running and healthy
+- 🔵 **Blue** - Pending (waiting to be scheduled)
+- 🔴 **Red** - Failed or error state
+- ⚫ **Gray** - Succeeded/completed
+- 🟡 **Yellow** - Warning state
+
+**Pod Glow (CPU Usage):**
+- 💙 **Blue glow** - Low CPU usage (0-25%)
+- 💛 **Yellow/Cyan glow** - Medium CPU usage (25-50%)
+- 🧡 **Orange glow** - High CPU usage (50-75%)
+- ❤️ **Red glow** - Very high CPU usage (75-100%+)
+
+**Pod Size (Memory Usage):**
+- Small spheres = Low memory usage
+- Large spheres = High memory usage
+- Size scales logarithmically from 0-1024MB
+
+**Sidecar Satellites:**
+- Small orbiting spheres around the main pod
+- Automatically detected (istio-proxy, envoy, fluentd, etc.)
+- Each sidecar shows its own CPU glow and status color
 
 ### Watching Real-Time Changes
 
@@ -192,6 +238,9 @@ docker run -d \
 ┌─────────────────────────────────────────────────┐
 │  Browser (React + Three.js)                     │
 │  ├─ 3D Scene Renderer (React Three Fiber)       │
+│  │  ├─ Memory-based pod sizing                  │
+│  │  ├─ CPU heat glow effects                    │
+│  │  └─ Sidecar satellite rendering               │
 │  ├─ WebSocket Client (Auto-reconnect)           │
 │  └─ Control Panel UI (React + CSS)              │
 └─────────────────┬───────────────────────────────┘
@@ -200,15 +249,17 @@ docker run -d \
 │  Observatory Backend (Go)                       │
 │  ├─ WebSocket Hub (gorilla/websocket)           │
 │  ├─ Kubernetes Watchers (client-go)             │
+│  ├─ Metrics Fetcher (5s interval)               │
 │  ├─ REST API Endpoints                          │
 │  └─ Event Broadcaster                           │
 └─────────────────┬───────────────────────────────┘
-                  │ Kubernetes API
+                  │ Kubernetes API + Metrics API
 ┌─────────────────▼───────────────────────────────┐
 │  k3s/Kubernetes Cluster                         │
 │  ├─ Nodes (compute resources)                   │
 │  ├─ Pods (running workloads)                    │
-│  └─ Watch API (real-time events)                │
+│  ├─ Watch API (real-time events)                │
+│  └─ Metrics Server (CPU/memory metrics)         │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -216,9 +267,13 @@ docker run -d \
 
 1. **Backend connects** to your k3s/Kubernetes cluster using your kubeconfig
 2. **Watchers monitor** nodes and pods for any changes (add/modify/delete)
-3. **WebSocket broadcasts** events to all connected frontend clients in real-time
-4. **Frontend receives** events and updates the 3D visualization smoothly
-5. **Dynamic positioning** recalculates pod orbits around nodes when the cluster changes
+3. **Metrics fetcher** polls CPU/memory data from metrics-server every 5 seconds
+4. **WebSocket broadcasts** events and metrics updates to all connected frontend clients in real-time
+5. **Frontend receives** updates and renders:
+   - Pod size based on memory usage
+   - Pod glow color/intensity based on CPU usage
+   - Sidecar containers as orbiting satellites
+6. **Dynamic positioning** recalculates pod orbits around nodes when the cluster changes
 
 ### Technology Stack
 
@@ -296,7 +351,18 @@ Fetch all pods across all namespaces with their 3D positions.
       {
         "name": "nginx",
         "status": "Running",
-        "restarts": 0
+        "restarts": 0,
+        "type": "main",
+        "cpu": 250.5,
+        "memory": 128.3
+      },
+      {
+        "name": "istio-proxy",
+        "status": "Running",
+        "restarts": 0,
+        "type": "sidecar",
+        "cpu": 50.2,
+        "memory": 64.1
       }
     ],
     "createdAt": "2025-01-15T10:30:00Z",
@@ -304,10 +370,17 @@ Fetch all pods across all namespaces with their 3D positions.
       "x": 12.5,
       "y": 0.0,
       "z": 1.2
-    }
+    },
+    "cpu": 300.7,
+    "memory": 192.4
   }
 ]
 ```
+
+**Container Types:**
+- `main` - Primary application container (usually the first container)
+- `sidecar` - Supporting container (detected by name: istio-proxy, envoy, fluentd, etc.)
+- `init` - Init container (runs before main containers)
 
 ### WebSocket
 
@@ -348,8 +421,9 @@ All events follow this structure:
 - `node_added` - Node joined cluster
 - `node_modified` - Node status changed (e.g., resource usage, conditions)
 - `node_deleted` - Node removed from cluster
+- `metrics_update` - CPU/memory metrics update (broadcast every 5 seconds)
 
-**Example:**
+**Example: Pod Added**
 ```json
 {
   "type": "pod_added",
@@ -366,6 +440,41 @@ All events follow this structure:
 }
 ```
 
+**Example: Metrics Update**
+```json
+{
+  "type": "metrics_update",
+  "data": {
+    "type": "metrics_update",
+    "pods": [
+      {
+        "podId": "pod-uid-456",
+        "name": "nginx-deployment-abc123",
+        "namespace": "default",
+        "totalCpu": 300.7,
+        "totalMemory": 192.4,
+        "containers": [
+          {
+            "name": "nginx",
+            "cpu": 250.5,
+            "memory": 128.3
+          },
+          {
+            "name": "istio-proxy",
+            "cpu": 50.2,
+            "memory": 64.1
+          }
+        ],
+        "timestamp": "2025-01-15T10:35:22Z"
+      }
+    ],
+    "timestamp": "2025-01-15T10:35:22Z"
+  }
+}
+```
+
+> **Note:** Metrics updates are only sent if metrics-server is installed and accessible. CPU values are in millicores (1000m = 1 core), memory values are in MB.
+
 ## 🛠️ Development
 
 ### Project Structure
@@ -380,10 +489,16 @@ k3s-observatory/
 │   │   │   ├── client.go
 │   │   │   ├── nodes.go
 │   │   │   ├── pods.go
-│   │   │   └── watcher.go
+│   │   │   ├── watcher.go
+│   │   │   ├── operations.go        # Describe, logs, metrics
+│   │   │   ├── metrics_fetcher.go   # Metrics polling service
+│   │   │   └── types.go             # Data models
+│   │   ├── api/             # REST API handlers
+│   │   │   └── handler.go
 │   │   └── websocket/       # WebSocket hub and client management
 │   │       ├── hub.go
-│   │       └── client.go
+│   │       ├── client.go
+│   │       └── handler.go
 │   ├── go.mod
 │   └── go.sum
 ├── frontend/
@@ -391,7 +506,9 @@ k3s-observatory/
 │   │   ├── components/      # React components
 │   │   │   ├── Scene.tsx            # Main 3D scene
 │   │   │   ├── NodeSphere.tsx       # Node visualization
-│   │   │   ├── PodSphere.tsx        # Pod visualization
+│   │   │   ├── PodSphere.tsx        # Pod visualization with metrics
+│   │   │   ├── SidecarSphere.tsx    # Sidecar satellite rendering
+│   │   │   ├── DetailPanel.tsx      # Pod/node details panel
 │   │   │   └── ToastContainer.tsx   # Toast notifications
 │   │   ├── hooks/           # Custom React hooks
 │   │   │   └── useWebSocket.ts      # WebSocket connection logic
@@ -442,7 +559,61 @@ npm run build
 # Output in dist/ folder
 ```
 
+## 📊 Metrics Server Setup
+
+Observatory's resource visualization features require metrics-server to be installed on your cluster. If you don't have it installed, the visualization will still work, but pods won't show size/glow based on resource usage.
+
+### Installing metrics-server on k3s
+
+k3s comes with metrics-server built-in, but it might not be enabled by default:
+
+```bash
+# Check if metrics-server is running
+kubectl get deployment metrics-server -n kube-system
+
+# If not found, k3s should have it enabled by default
+# Verify with:
+kubectl top nodes
+kubectl top pods
+
+# If you get errors, you may need to reinstall k3s with metrics-server enabled
+```
+
+### Installing metrics-server on standard Kubernetes
+
+```bash
+# Install metrics-server
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+# For local/development clusters (like kind, minikube), you may need to disable TLS:
+kubectl patch deployment metrics-server -n kube-system --type='json' \
+  -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
+
+# Verify it's working
+kubectl top nodes
+kubectl top pods --all-namespaces
+```
+
+### Verifying Metrics Integration
+
+Once metrics-server is installed, Observatory will automatically start collecting and displaying resource metrics:
+
+1. Check backend logs for: `Broadcasted metrics for X pods`
+2. Observe pods changing size based on memory usage
+3. Watch CPU glow effects as pods consume resources
+4. See sidecars appear as orbiting satellites
+
 ## 🐛 Troubleshooting
+
+### Metrics not showing up
+
+**Issue:** Pods appear as fixed size with no CPU glow
+
+**Solution:**
+1. Verify metrics-server is installed: `kubectl get deployment metrics-server -n kube-system`
+2. Test metrics API: `kubectl top pods`
+3. Check backend logs for metrics-related errors
+4. Ensure Observatory has RBAC permissions to access metrics API
 
 ### Backend won't connect to cluster
 
@@ -489,24 +660,34 @@ See [CLAUDE.md](./CLAUDE.md) for the detailed project vision and feature roadmap
 - [x] Namespace filtering
 - [x] Dynamic pod redistribution
 
-**Phase 2: Resource Visualization** (In Progress)
-- [ ] CPU usage shown as pulsing intensity/glow
-- [ ] Memory usage shown as size scaling
-- [ ] Network traffic as particle streams between pods
-- [ ] Resource graphs in detail panel
+**Phase 2: Real-time Updates** ✅ Complete
+- [x] WebSocket connection with auto-reconnect
+- [x] Kubernetes Watch API integration
+- [x] Live pod/node lifecycle events
+- [x] Connection health indicator
+- [x] Smooth animations for state changes
 
-**Phase 3: Historical & Analysis**
-- [ ] Store metrics history in database
-- [ ] Timeline scrubber to replay past states
-- [ ] Playback speed controls
-- [ ] Incident bookmarking
+**Phase 3: Resource Visualization** ✅ Complete
+- [x] CPU usage shown as heat glow (blue → cyan → yellow → orange → red)
+- [x] Memory usage shown as size scaling (logarithmic)
+- [x] Sidecar containers rendered as orbiting satellites
+- [x] Real-time metrics streaming (5s interval)
+- [x] Automatic sidecar detection (istio-proxy, envoy, etc.)
+- [x] Per-container CPU/memory metrics
 
-**Phase 4: Polish & Production**
+**Phase 4: Traffic & Entry Points** (Next)
+- [ ] Ingress/LoadBalancers as portal gateways
+- [ ] Service-based traffic flows with animated ships/particles
+- [ ] Connection lines between related pods
+- [ ] Traffic intensity visualization
+
+**Phase 5: Polish & Production**
+- [ ] Click pod/node for detailed info panel
+- [ ] Search/filter pods by name or namespace
+- [ ] Camera reset button and saved views
 - [ ] Multiple visualization modes
-- [ ] Custom labels and annotations
-- [ ] Screenshot/screen recording
-- [ ] Mobile-responsive view
 - [ ] Dark/light themes
+- [ ] Performance optimizations for large clusters
 
 ## 🤝 Contributing
 
